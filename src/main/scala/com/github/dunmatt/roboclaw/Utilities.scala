@@ -14,4 +14,6 @@ object Utilities {
     val crc = crc16(packet)
     packet :+ (crc >> 8).toByte :+ crc.toByte
   }
+
+  def readSignedShort(bytes: Seq[Byte]): Int = (bytes(0) << 8) | bytes(1)
 }
