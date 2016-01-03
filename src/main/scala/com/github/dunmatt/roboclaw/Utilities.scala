@@ -15,5 +15,9 @@ object Utilities {
     packet :+ (crc >> 8).toByte :+ crc.toByte
   }
 
-  def readSignedShort(bytes: Seq[Byte]): Int = (bytes(0) << 8) | bytes(1)
+  def readSignedShort(bytes: Seq[Byte]): Short = ((bytes(0) << 8) | bytes(1)).toShort
+
+  def writeSignedShort(value: Double): Seq[Byte] = {
+    List((value.toShort >>> 8).toByte, value.toByte)
+  }
 }
