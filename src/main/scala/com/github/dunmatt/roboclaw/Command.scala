@@ -229,44 +229,44 @@ case class ReadSecondaryTemperature(address: Byte) extends Command {
 }
 
 object StatusFlags {
-  val NORMAL = 0x0000
-  val M1_OVER_CURRENT_WARNING = 0x0001
-  val M2_OVER_CURRENT_WARNING = 0x0002
-  val E_STOP = 0x0004
-  val TEMPERATURE_ERROR = 0x0008
-  val TEMPERATURE_2_ERROR = 0x0010
-  val MAIN_BATTERY_HIGH_ERROR = 0x0020
-  val LOGIC_BATTERY_HIGH_ERROR = 0x0040
-  val LOGIC_BATTERY_LOW_ERROR = 0x0080
-  val M1_DRIVER_FAULT = 0x0100
-  val M2_DRIVER_FAULT = 0x0200
+  val NORMAL                    = 0x0000
+  val M1_OVER_CURRENT_WARNING   = 0x0001
+  val M2_OVER_CURRENT_WARNING   = 0x0002
+  val E_STOP                    = 0x0004
+  val TEMPERATURE_ERROR         = 0x0008
+  val TEMPERATURE_2_ERROR       = 0x0010
+  val MAIN_BATTERY_HIGH_ERROR   = 0x0020
+  val LOGIC_BATTERY_HIGH_ERROR  = 0x0040
+  val LOGIC_BATTERY_LOW_ERROR   = 0x0080
+  val M1_DRIVER_FAULT           = 0x0100
+  val M2_DRIVER_FAULT           = 0x0200
   val MAIN_BATTERY_HIGH_WARNING = 0x0400
-  val MAIN_BATTERY_LOW_WARNING = 0x0800
-  val TEMPERATURE_WARNING = 0x1000
-  val TEMPERATURE_2_WARNING = 0x2000
-  val M1_HOME = 0X4000
-  val M2_HOME = 0X8000
+  val MAIN_BATTERY_LOW_WARNING  = 0x0800
+  val TEMPERATURE_WARNING       = 0x1000
+  val TEMPERATURE_2_WARNING     = 0x2000
+  val M1_HOME                   = 0x4000
+  val M2_HOME                   = 0x8000
 }
 
 case class RoboclawStatus(status: Short) {
   import StatusFlags._
   def normal = status == NORMAL
-  def m1OverCurrentWarning = (status & M1_OVER_CURRENT_WARNING) != 0
-  def m2OverCurrentWarning = (status & M2_OVER_CURRENT_WARNING) != 0
-  def eStop = (status & E_STOP) != 0
-  def temperatureError = (status & TEMPERATURE_ERROR) != 0
-  def temperature2Error = (status & TEMPERATURE_2_ERROR) != 0
-  def mainBatteryHighError = (status & MAIN_BATTERY_HIGH_ERROR) != 0
-  def logicBatteryHighError = (status & LOGIC_BATTERY_HIGH_ERROR) != 0
-  def logicBatteryLowError = (status & LOGIC_BATTERY_LOW_ERROR) != 0
-  def m1DriverFault = (status & M1_DRIVER_FAULT) != 0
-  def m2DriverFault = (status & M2_DRIVER_FAULT) != 0
+  def m1OverCurrentWarning   = (status & M1_OVER_CURRENT_WARNING)   != 0
+  def m2OverCurrentWarning   = (status & M2_OVER_CURRENT_WARNING)   != 0
+  def eStop                  = (status & E_STOP)                    != 0
+  def temperatureError       = (status & TEMPERATURE_ERROR)         != 0
+  def temperature2Error      = (status & TEMPERATURE_2_ERROR)       != 0
+  def mainBatteryHighError   = (status & MAIN_BATTERY_HIGH_ERROR)   != 0
+  def logicBatteryHighError  = (status & LOGIC_BATTERY_HIGH_ERROR)  != 0
+  def logicBatteryLowError   = (status & LOGIC_BATTERY_LOW_ERROR)   != 0
+  def m1DriverFault          = (status & M1_DRIVER_FAULT)           != 0
+  def m2DriverFault          = (status & M2_DRIVER_FAULT)           != 0
   def mainBatteryHighWarning = (status & MAIN_BATTERY_HIGH_WARNING) != 0
-  def mainBatteryLowWarning = (status & MAIN_BATTERY_LOW_WARNING) != 0
-  def temperatureWarning = (status & TEMPERATURE_WARNING) != 0
-  def temperature2Warning = (status & TEMPERATURE_2_WARNING) != 0
-  def m1Home = (status & M1_HOME) != 0
-  def m2Home = (status & M2_HOME) != 0
+  def mainBatteryLowWarning  = (status & MAIN_BATTERY_LOW_WARNING)  != 0
+  def temperatureWarning     = (status & TEMPERATURE_WARNING)       != 0
+  def temperature2Warning    = (status & TEMPERATURE_2_WARNING)     != 0
+  def m1Home                 = (status & M1_HOME)                   != 0
+  def m2Home                 = (status & M2_HOME)                   != 0
 }
 
 case class ReadStatus(address: Byte) extends Command {
@@ -494,6 +494,31 @@ case class DriveM1M2WithSignedDutyCycle(address: Byte, dutyCycle: TwoMotorData[D
     buf.putShort(2, (dutyCycle.m1 * 32767).toShort)
     buf.putShort(4, (dutyCycle.m2 * 32767).toShort)
     6
+  }
+}
+
+case class DriveM1WithSignedSpeed(address: Byte, speed: Frequency) extends CrcCommand {
+  val command = 35.toByte
+  override def populateBufferMiddle(buf: ByteBuffer): Int = {
+    buf.putInt(2, speed.toHertz.toInt)
+    6
+  }
+}
+
+case class DriveM2WithSignedSpeed(address: Byte, speed: Frequency) extends CrcCommand {
+  val command = 36.toByte
+  override def populateBufferMiddle(buf: ByteBuffer): Int = {
+    buf.putInt(2, speed.toHertz.toInt)
+    6
+  }
+}
+
+case class DriveM1M2WithSignedSpeed(address: Byte, speeds: TwoMotorData[Frequency]) extends CrcCommand {
+  val command = 37.toByte
+  override def populateBufferMiddle(buf: ByteBuffer): Int = {
+    buf.putInt(2, speeds.m1.toHertz.toInt)
+    buf.putInt(6, speeds.m2.toHertz.toInt)
+    10
   }
 }
 
