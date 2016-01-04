@@ -1,7 +1,6 @@
 package com.github.dunmatt.roboclaw
 
 import java.nio.ByteBuffer
-import scala.concurrent.Promise
 import squants.electro.{ ElectricCurrent, ElectricPotential }
 import squants.electro.ElectricCurrentConversions._
 import squants.electro.ElectricPotentialConversions._
@@ -12,9 +11,6 @@ import squants.time.FrequencyConversions._
 
 sealed trait Command {
   type ResponseType
-  protected[roboclaw] val resultsPromise = Promise[ResponseType]
-  val results = resultsPromise.future
-
   def address: Byte
   def command: Byte
   def populateByteBuffer(buf: ByteBuffer): Int = {
@@ -24,7 +20,7 @@ sealed trait Command {
   }
   def parseResults(data: ByteBuffer): ResponseType
 
-  def addCrc(buf: ByteBuffer, packetLenth: Int): Unit = {
+  protected def addCrc(buf: ByteBuffer, packetLenth: Int): Unit = {
     buf.putChar(packetLenth, Utilities.crc16(buf, packetLenth))
   }
 }
@@ -34,16 +30,24 @@ sealed trait UnitCommand extends Command {
   def parseResults(data: ByteBuffer) = Unit  // TODO: barf everywhere if we don't get 0xff
 }
 
-
-// COMPATIBILITY COMMANDS
-sealed trait SimpleMotorCommand extends UnitCommand {
-  def speed: Byte
-  override def populateByteBuffer(buf: ByteBuffer): Int = {
+sealed trait CrcCommand extends UnitCommand {
+  def populateBufferMiddle(buf: ByteBuffer): Int
+  final override def populateByteBuffer(buf: ByteBuffer): Int = {
     buf.put(0, address)
     buf.put(1, command)
+    val endOfMiddle = populateBufferMiddle(buf)
+    addCrc(buf, endOfMiddle)
+    endOfMiddle + 2
+  }
+}
+
+
+// COMPATIBILITY COMMANDS
+sealed trait SimpleMotorCommand extends CrcCommand {
+  def speed: Byte
+  override def populateBufferMiddle(buf: ByteBuffer): Int = {
     buf.put(2, speed)
-    addCrc(buf, 3)
-    5
+    3
   }
 }
 
@@ -142,29 +146,23 @@ case class ReadMotorCurrents(address: Byte) extends Command {
 
 case class SetMainBatteryVoltages( address: Byte
                                  , min: ElectricPotential
-                                 , max: ElectricPotential) extends UnitCommand {
+                                 , max: ElectricPotential) extends CrcCommand {
   val command = 57.toByte
-  override def populateByteBuffer(buf: ByteBuffer): Int = {
-    buf.put(0, address)
-    buf.put(1, command)
+  override def populateBufferMiddle(buf: ByteBuffer): Int = {
     buf.putShort(2, (min.toVolts * 10).toShort)
     buf.putShort(4, (max.toVolts * 10).toShort)
-    addCrc(buf, 6)
-    8
+    6
   }
 }
 
 case class SetLogicBatteryVoltages( address: Byte
                                   , min: ElectricPotential
-                                  , max: ElectricPotential) extends UnitCommand {
+                                  , max: ElectricPotential) extends CrcCommand {
   val command = 58.toByte
-  override def populateByteBuffer(buf: ByteBuffer): Int = {
-    buf.put(0, address)
-    buf.put(1, command)
+  override def populateBufferMiddle(buf: ByteBuffer): Int = {
     buf.putShort(2, (min.toVolts * 10).toShort)
     buf.putShort(4, (max.toVolts * 10).toShort)
-    addCrc(buf, 6)
-    8
+    6
   }
 }
 
@@ -189,16 +187,13 @@ case class ReadLogicBatteryVoltageSettings(address: Byte) extends Command {
 case class SetS3S4S5Modes( address: Byte
                          , s3: Byte
                          , s4: Byte
-                         , s5: Byte) extends UnitCommand {
+                         , s5: Byte) extends CrcCommand {
   val command = 74.toByte
-  override def populateByteBuffer(buf: ByteBuffer): Int = {
-    buf.put(0, address)
-    buf.put(1, command)
+  override def populateBufferMiddle(buf: ByteBuffer): Int = {
     buf.put(2, s3)
     buf.put(3, s4)
     buf.put(4, s5)
-    addCrc(buf, 5)
-    7
+    5
   }
 }
 
@@ -256,22 +251,22 @@ object StatusFlags {
 case class RoboclawStatus(status: Short) {
   import StatusFlags._
   def normal = status == NORMAL
-  def m1OverCurrentWarning = (status & M1_OVER_CURRENT_WARNING) > 0
-  def m2OverCurrentWarning = (status & M2_OVER_CURRENT_WARNING) > 0
-  def eStop = (status & E_STOP) > 0
-  def temperatureError = (status & TEMPERATURE_ERROR) > 0
-  def temperature2Error = (status & TEMPERATURE_2_ERROR) > 0
-  def mainBatteryHighError = (status & MAIN_BATTERY_HIGH_ERROR) > 0
-  def logicBatteryHighError = (status & LOGIC_BATTERY_HIGH_ERROR) > 0
-  def logicBatteryLowError = (status & LOGIC_BATTERY_LOW_ERROR) > 0
-  def m1DriverFault = (status & M1_DRIVER_FAULT) > 0
-  def m2DriverFault = (status & M2_DRIVER_FAULT) > 0
-  def mainBatteryHighWarning = (status & MAIN_BATTERY_HIGH_WARNING) > 0
-  def mainBatteryLowWarning = (status & MAIN_BATTERY_LOW_WARNING) > 0
-  def temperatureWarning = (status & TEMPERATURE_WARNING) > 0
-  def temperature2Warning = (status & TEMPERATURE_2_WARNING) > 0
-  def m1Home = (status & M1_HOME) > 0
-  def m2Home = (status & M2_HOME) > 0
+  def m1OverCurrentWarning = (status & M1_OVER_CURRENT_WARNING) != 0
+  def m2OverCurrentWarning = (status & M2_OVER_CURRENT_WARNING) != 0
+  def eStop = (status & E_STOP) != 0
+  def temperatureError = (status & TEMPERATURE_ERROR) != 0
+  def temperature2Error = (status & TEMPERATURE_2_ERROR) != 0
+  def mainBatteryHighError = (status & MAIN_BATTERY_HIGH_ERROR) != 0
+  def logicBatteryHighError = (status & LOGIC_BATTERY_HIGH_ERROR) != 0
+  def logicBatteryLowError = (status & LOGIC_BATTERY_LOW_ERROR) != 0
+  def m1DriverFault = (status & M1_DRIVER_FAULT) != 0
+  def m2DriverFault = (status & M2_DRIVER_FAULT) != 0
+  def mainBatteryHighWarning = (status & MAIN_BATTERY_HIGH_WARNING) != 0
+  def mainBatteryLowWarning = (status & MAIN_BATTERY_LOW_WARNING) != 0
+  def temperatureWarning = (status & TEMPERATURE_WARNING) != 0
+  def temperature2Warning = (status & TEMPERATURE_2_WARNING) != 0
+  def m1Home = (status & M1_HOME) != 0
+  def m2Home = (status & M2_HOME) != 0
 }
 
 case class ReadStatus(address: Byte) extends Command {
@@ -291,25 +286,19 @@ case class ReadEncoderMode(address: Byte) extends Command {
                                                    , if((data.get(1) & 1) == 0) QUADRATURE else ABSOLUTE)
 }
 
-case class SetMotor1EncoderMode(address: Byte, mode: EncoderMode) extends UnitCommand {
+case class SetMotor1EncoderMode(address: Byte, mode: EncoderMode) extends CrcCommand {
   val command = 92.toByte
-  override def populateByteBuffer(buf: ByteBuffer): Int = {
-    buf.put(0, address)
-    buf.put(1, command)
+  override def populateBufferMiddle(buf: ByteBuffer): Int = {
     buf.put(2, if(mode == ABSOLUTE) 1 else 0)
-    addCrc(buf, 3)
-    5
+    3
   }
 }
 
-case class SetMotor2EncoderMode(address: Byte, mode: EncoderMode) extends UnitCommand {
+case class SetMotor2EncoderMode(address: Byte, mode: EncoderMode) extends CrcCommand {
   val command = 93.toByte
-  override def populateByteBuffer(buf: ByteBuffer): Int = {
-    buf.put(0, address)
-    buf.put(1, command)
+  override def populateBufferMiddle(buf: ByteBuffer): Int = {
     buf.put(2, if(mode == ABSOLUTE) 1 else 0)
-    addCrc(buf, 3)
-    5
+    3
   }
 }
 
@@ -324,27 +313,21 @@ case class ReadSettingsFromEeprom(address: Byte) extends Command {
                                                    , if((data.get(1) & 1) == 0) QUADRATURE else ABSOLUTE)
 }
 
-case class SetM1CurrentLimit(address: Byte, max: ElectricCurrent) extends UnitCommand {
+case class SetM1CurrentLimit(address: Byte, max: ElectricCurrent) extends CrcCommand {
   val command = 134.toByte
-  override def populateByteBuffer(buf: ByteBuffer): Int = {
-    buf.put(0, address)
-    buf.put(1, command)
+  override def populateBufferMiddle(buf: ByteBuffer): Int = {
     buf.putShort(2, (max.toAmperes * 100).toShort)
     buf.putShort(4, 0)
-    addCrc(buf, 6)
-    8
+    6
   }
 }
 
-case class SetM2CurrentLimit(address: Byte, max: ElectricCurrent) extends UnitCommand {
+case class SetM2CurrentLimit(address: Byte, max: ElectricCurrent) extends CrcCommand {
   val command = 135.toByte
-  override def populateByteBuffer(buf: ByteBuffer): Int = {
-    buf.put(0, address)
-    buf.put(1, command)
+  override def populateBufferMiddle(buf: ByteBuffer): Int = {
     buf.putShort(2, (max.toAmperes * 100).toShort)
     buf.putShort(4, 0)
-    addCrc(buf, 6)
-    8
+    6
   }
 }
 
@@ -366,14 +349,11 @@ sealed trait PwmMode
 case object LOCKED_ANTIPHASE extends PwmMode
 case object SIGN_MAGNITUDE extends PwmMode
 
-case class SetPwmMode(address: Byte, mode: PwmMode) extends UnitCommand {
+case class SetPwmMode(address: Byte, mode: PwmMode) extends CrcCommand {
   val command = 148.toByte
-  override def populateByteBuffer(buf: ByteBuffer): Int = {
-    buf.put(0, address)
-    buf.put(1, command)
+  override def populateBufferMiddle(buf: ByteBuffer): Int = {
     buf.put(2, if(mode == LOCKED_ANTIPHASE) 0 else 1)
-    addCrc(buf, 3)
-    8
+    3
   }
 }
 
@@ -423,35 +403,24 @@ case class ReadM2Speed(address: Byte) extends Command {
   }
 }
 
-case class ResetQuadratureEncoderCounters(address: Byte) extends UnitCommand {
+case class ResetQuadratureEncoderCounters(address: Byte) extends CrcCommand {
   val command = 20.toByte
-  override def populateByteBuffer(buf: ByteBuffer): Int = {
-    buf.put(0, address)
-    buf.put(1, command)
-    addCrc(buf, 2)
-    4
-  }
+  override def populateBufferMiddle(buf: ByteBuffer): Int = 2
 }
 
-case class SetQuadratureEncoder1Value(address: Byte, value: Long) extends UnitCommand {
+case class SetQuadratureEncoder1Value(address: Byte, value: Long) extends CrcCommand {
   val command = 22.toByte
-  override def populateByteBuffer(buf: ByteBuffer): Int = {
-    buf.put(0, address)
-    buf.put(1, command)
+  override def populateBufferMiddle(buf: ByteBuffer): Int = {
     buf.putInt(2, value.toInt)
-    addCrc(buf, 6)
-    8
+    6
   }
 }
 
-case class SetQuadratureEncoder2Value(address: Byte, value: Long) extends UnitCommand {
+case class SetQuadratureEncoder2Value(address: Byte, value: Long) extends CrcCommand {
   val command = 23.toByte
-  override def populateByteBuffer(buf: ByteBuffer): Int = {
-    buf.put(0, address)
-    buf.put(1, command)
+  override def populateBufferMiddle(buf: ByteBuffer): Int = {
     buf.putInt(2, value.toInt)
-    addCrc(buf, 6)
-    8
+    6
   }
 }
 
@@ -461,17 +430,14 @@ case class SetVelocityPidConstantsM1( address: Byte
                                     , qpps: Frequency
                                     , p: Int
                                     , i: Int
-                                    , d: Int) extends UnitCommand {
+                                    , d: Int) extends CrcCommand {
   val command = 28.toByte
-  override def populateByteBuffer(buf: ByteBuffer): Int = {
-    buf.put(0, address)
-    buf.put(1, command)
+  override def populateBufferMiddle(buf: ByteBuffer): Int = {
     buf.putInt(2, d)
     buf.putInt(6, p)
     buf.putInt(10, i)
     buf.putInt(14, qpps.toHertz.toInt)
-    addCrc(buf, 18)
-    20
+    18
   }
 }
 
@@ -479,17 +445,14 @@ case class SetVelocityPidConstantsM2( address: Byte
                                     , qpps: Frequency
                                     , p: Int
                                     , i: Int
-                                    , d: Int) extends UnitCommand {
+                                    , d: Int) extends CrcCommand {
   val command = 29.toByte
-  override def populateByteBuffer(buf: ByteBuffer): Int = {
-    buf.put(0, address)
-    buf.put(1, command)
+  override def populateBufferMiddle(buf: ByteBuffer): Int = {
     buf.putInt(2, d)
     buf.putInt(6, p)
     buf.putInt(10, i)
     buf.putInt(14, qpps.toHertz.toInt)
-    addCrc(buf, 18)
-    20
+    18
   }
 }
 
@@ -509,38 +472,28 @@ case class ReadRawSpeedM2(address: Byte) extends Command {
   }
 }
 
-case class DriveM1WithSignedDutyCycle(address: Byte, dutyCycle: Short) extends UnitCommand {
-  def this(addr: Byte, dc: Double) = this(addr, (dc * 32767).toShort)
+case class DriveM1WithSignedDutyCycle(address: Byte, dutyCycle: Double) extends CrcCommand {
   val command = 32.toByte
-  override def populateByteBuffer(buf: ByteBuffer): Int = {
-    buf.put(0, address)
-    buf.put(1, command)
-    buf.putShort(2, dutyCycle)
-    addCrc(buf, 4)
-    6
-  }
-}
-
-case class DriveM2WithSignedDutyCycle(address: Byte, dutyCycle: Double) extends UnitCommand {
-  val command = 33.toByte
-  override def populateByteBuffer(buf: ByteBuffer): Int = {
-    buf.put(0, address)
-    buf.put(1, command)
+  override def populateBufferMiddle(buf: ByteBuffer): Int = {
     buf.putShort(2, (dutyCycle * 32767).toShort)
-    addCrc(buf, 4)
-    6
+    4
   }
 }
 
-case class DriveM1M2WithSignedDutyCycle(address: Byte, dutyCycle: TwoMotorData[Double]) extends UnitCommand {
+case class DriveM2WithSignedDutyCycle(address: Byte, dutyCycle: Double) extends CrcCommand {
+  val command = 33.toByte
+  override def populateBufferMiddle(buf: ByteBuffer): Int = {
+    buf.putShort(2, (dutyCycle * 32767).toShort)
+    4
+  }
+}
+
+case class DriveM1M2WithSignedDutyCycle(address: Byte, dutyCycle: TwoMotorData[Double]) extends CrcCommand {
   val command = 34.toByte
-  override def populateByteBuffer(buf: ByteBuffer): Int = {
-    buf.put(0, address)
-    buf.put(1, command)
+  override def populateBufferMiddle(buf: ByteBuffer): Int = {
     buf.putShort(2, (dutyCycle.m1 * 32767).toShort)
     buf.putShort(4, (dutyCycle.m2 * 32767).toShort)
-    addCrc(buf, 6)
-    8
+    6
   }
 }
 
