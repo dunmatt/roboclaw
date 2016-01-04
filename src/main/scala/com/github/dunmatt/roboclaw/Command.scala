@@ -7,6 +7,8 @@ import squants.electro.ElectricCurrentConversions._
 import squants.electro.ElectricPotentialConversions._
 import squants.thermal.Temperature
 import squants.thermal.TemperatureConversions._
+import squants.time.Frequency
+import squants.time.FrequencyConversions._
 
 sealed trait Command {
   type ResponseType
@@ -393,9 +395,155 @@ case class ReadM1Encoder(address: Byte) extends Command {
   type ResponseType = (Long, EncoderStatus)
   val command = 16.toByte
   def parseResults(data: ByteBuffer) = {
-    (data.getInt(0).toLong + Int.MaxValue, EncoderStatus(data.get(4)))
+    (data.getInt(0).toLong + Int.MaxValue + 1, EncoderStatus(data.get(4)))
   }
 }
+
+case class ReadM2Encoder(address: Byte) extends Command {
+  type ResponseType = (Long, EncoderStatus)
+  val command = 17.toByte
+  def parseResults(data: ByteBuffer) = {
+    (data.getInt(0).toLong + Int.MaxValue + 1, EncoderStatus(data.get(4)))
+  }
+}
+
+case class ReadM1Speed(address: Byte) extends Command {
+  type ResponseType = (Frequency, EncoderStatus)
+  val command = 18.toByte
+  def parseResults(data: ByteBuffer) = {
+    (data.getInt(0).hertz, EncoderStatus(data.get(4)))
+  }
+}
+
+case class ReadM2Speed(address: Byte) extends Command {
+  type ResponseType = (Frequency, EncoderStatus)
+  val command = 19.toByte
+  def parseResults(data: ByteBuffer) = {
+    (data.getInt(0).hertz, EncoderStatus(data.get(4)))
+  }
+}
+
+case class ResetQuadratureEncoderCounters(address: Byte) extends UnitCommand {
+  val command = 20.toByte
+  override def populateByteBuffer(buf: ByteBuffer): Int = {
+    buf.put(0, address)
+    buf.put(1, command)
+    addCrc(buf, 2)
+    4
+  }
+}
+
+case class SetQuadratureEncoder1Value(address: Byte, value: Long) extends UnitCommand {
+  val command = 22.toByte
+  override def populateByteBuffer(buf: ByteBuffer): Int = {
+    buf.put(0, address)
+    buf.put(1, command)
+    buf.putInt(2, value.toInt)
+    addCrc(buf, 6)
+    8
+  }
+}
+
+case class SetQuadratureEncoder2Value(address: Byte, value: Long) extends UnitCommand {
+  val command = 23.toByte
+  override def populateByteBuffer(buf: ByteBuffer): Int = {
+    buf.put(0, address)
+    buf.put(1, command)
+    buf.putInt(2, value.toInt)
+    addCrc(buf, 6)
+    8
+  }
+}
+
+
+// ADVANCED MOTOR CONTROL
+case class SetVelocityPidConstantsM1( address: Byte
+                                    , qpps: Frequency
+                                    , p: Int
+                                    , i: Int
+                                    , d: Int) extends UnitCommand {
+  val command = 28.toByte
+  override def populateByteBuffer(buf: ByteBuffer): Int = {
+    buf.put(0, address)
+    buf.put(1, command)
+    buf.putInt(2, d)
+    buf.putInt(6, p)
+    buf.putInt(10, i)
+    buf.putInt(14, qpps.toHertz.toInt)
+    addCrc(buf, 18)
+    20
+  }
+}
+
+case class SetVelocityPidConstantsM2( address: Byte
+                                    , qpps: Frequency
+                                    , p: Int
+                                    , i: Int
+                                    , d: Int) extends UnitCommand {
+  val command = 29.toByte
+  override def populateByteBuffer(buf: ByteBuffer): Int = {
+    buf.put(0, address)
+    buf.put(1, command)
+    buf.putInt(2, d)
+    buf.putInt(6, p)
+    buf.putInt(10, i)
+    buf.putInt(14, qpps.toHertz.toInt)
+    addCrc(buf, 18)
+    20
+  }
+}
+
+case class ReadRawSpeedM1(address: Byte) extends Command {
+  type ResponseType = (Frequency, Boolean)  // boolean here is "forward"
+  val command = 30.toByte
+  def parseResults(data: ByteBuffer) = {
+    (data.getInt(0).hertz * 300, data.get(4) == 0d)
+  }
+}
+
+case class ReadRawSpeedM2(address: Byte) extends Command {
+  type ResponseType = (Frequency, Boolean)  // boolean here is "forward"
+  val command = 31.toByte
+  def parseResults(data: ByteBuffer) = {
+    (data.getInt(0).hertz * 300, data.get(4) == 0d)
+  }
+}
+
+case class DriveM1WithSignedDutyCycle(address: Byte, dutyCycle: Short) extends UnitCommand {
+  def this(addr: Byte, dc: Double) = this(addr, (dc * 32767).toShort)
+  val command = 32.toByte
+  override def populateByteBuffer(buf: ByteBuffer): Int = {
+    buf.put(0, address)
+    buf.put(1, command)
+    buf.putShort(2, dutyCycle)
+    addCrc(buf, 4)
+    6
+  }
+}
+
+case class DriveM2WithSignedDutyCycle(address: Byte, dutyCycle: Double) extends UnitCommand {
+  val command = 33.toByte
+  override def populateByteBuffer(buf: ByteBuffer): Int = {
+    buf.put(0, address)
+    buf.put(1, command)
+    buf.putShort(2, (dutyCycle * 32767).toShort)
+    addCrc(buf, 4)
+    6
+  }
+}
+
+case class DriveM1M2WithSignedDutyCycle(address: Byte, dutyCycle: TwoMotorData[Double]) extends UnitCommand {
+  val command = 34.toByte
+  override def populateByteBuffer(buf: ByteBuffer): Int = {
+    buf.put(0, address)
+    buf.put(1, command)
+    buf.putShort(2, (dutyCycle.m1 * 32767).toShort)
+    buf.putShort(4, (dutyCycle.m2 * 32767).toShort)
+    addCrc(buf, 6)
+    8
+  }
+}
+
 
 
 
