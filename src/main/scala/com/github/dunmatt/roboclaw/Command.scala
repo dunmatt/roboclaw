@@ -9,8 +9,7 @@ import squants.thermal.TemperatureConversions._
 import squants.time.Frequency
 import squants.time.FrequencyConversions._
 
-sealed trait Command {
-  type ResponseType
+sealed trait Command[ResponseType] {
   def address: Byte
   def command: Byte
   def populateByteBuffer(buf: ByteBuffer): Int = {
@@ -25,8 +24,7 @@ sealed trait Command {
   }
 }
 
-sealed trait UnitCommand extends Command {
-  type ResponseType = Unit
+sealed trait UnitCommand extends Command[Unit] {
   def parseResults(data: ByteBuffer) = Unit  // TODO: barf everywhere if we don't get 0xff
 }
 
@@ -105,8 +103,7 @@ case class TurnLeftOrRight(address: Byte, speed: Byte) extends SimpleMotorComman
 
 
 // VERSION, STATUS, AND SETTINGS COMMANDS
-case class ReadFirmwareVersion(address: Byte) extends Command {
-  type ResponseType = String
+case class ReadFirmwareVersion(address: Byte) extends Command[String] {
   val command = 21.toByte
   def parseResults(data: ByteBuffer) = {
     val arr = data.array
@@ -114,20 +111,17 @@ case class ReadFirmwareVersion(address: Byte) extends Command {
   }
 }
 
-case class ReadMainBatteryVoltage(address: Byte) extends Command {
-  type ResponseType = ElectricPotential
+case class ReadMainBatteryVoltage(address: Byte) extends Command[ElectricPotential] {
   val command = 24.toByte
   def parseResults(data: ByteBuffer) = data.getShort(0).volts / 10d
 }
 
-case class ReadLogicBatteryVoltage(address: Byte) extends Command {
-  type ResponseType = ElectricPotential
+case class ReadLogicBatteryVoltage(address: Byte) extends Command[ElectricPotential] {
   val command = 25.toByte
   def parseResults(data: ByteBuffer) = data.getShort(0).volts / 10d
 }
 
-case class ReadMotorPwmValues(address: Byte) extends Command {
-  type ResponseType = TwoMotorData[Double]
+case class ReadMotorPwmValues(address: Byte) extends Command[TwoMotorData[Double]] {
   val command = 48.toByte
   def parseResults(data: ByteBuffer) = {
     TwoMotorData( data.getShort(0) / 32767d
@@ -135,8 +129,7 @@ case class ReadMotorPwmValues(address: Byte) extends Command {
   }
 }
 
-case class ReadMotorCurrents(address: Byte) extends Command {
-  type ResponseType = TwoMotorData[ElectricCurrent]
+case class ReadMotorCurrents(address: Byte) extends Command[TwoMotorData[ElectricCurrent]] {
   val command = 49.toByte
   def parseResults(data: ByteBuffer) = {
     TwoMotorData( data.getShort(0).amps / 100d
@@ -166,8 +159,7 @@ case class SetLogicBatteryVoltages( address: Byte
   }
 }
 
-case class ReadMainBatteryVoltageSettings(address: Byte) extends Command {
-  type ResponseType = Range[ElectricPotential]
+case class ReadMainBatteryVoltageSettings(address: Byte) extends Command[Range[ElectricPotential]] {
   val command = 59.toByte
   def parseResults(data: ByteBuffer) = {
     Range( data.getShort(0).volts / 10d
@@ -175,8 +167,7 @@ case class ReadMainBatteryVoltageSettings(address: Byte) extends Command {
   }
 }
 
-case class ReadLogicBatteryVoltageSettings(address: Byte) extends Command {
-  type ResponseType = Range[ElectricPotential]
+case class ReadLogicBatteryVoltageSettings(address: Byte) extends Command[Range[ElectricPotential]] {
   val command = 60.toByte
   def parseResults(data: ByteBuffer) = {
     Range( data.getShort(0).volts / 10d
@@ -197,8 +188,7 @@ case class SetS3S4S5Modes( address: Byte
   }
 }
 
-case class GetS3S4S5Modes(address: Byte) extends Command {
-  type ResponseType = (Byte, Byte, Byte)
+case class GetS3S4S5Modes(address: Byte) extends Command[(Byte, Byte, Byte)] {
   val command = 75.toByte
   def parseResults(data: ByteBuffer) = (data.get(0), data.get(1), data.get(2))
 }
@@ -216,14 +206,12 @@ case class FactoryReset(address: Byte) extends UnitCommand {
   val command = 80.toByte
 }
 
-case class ReadPrimaryTemperature(address: Byte) extends Command {
-  type ResponseType = Temperature
+case class ReadPrimaryTemperature(address: Byte) extends Command[Temperature] {
   val command = 82.toByte
   def parseResults(data: ByteBuffer) = data.getShort(0).celsius / 10d
 }
 
-case class ReadSecondaryTemperature(address: Byte) extends Command {
-  type ResponseType = Temperature
+case class ReadSecondaryTemperature(address: Byte) extends Command[Temperature] {
   val command = 83.toByte
   def parseResults(data: ByteBuffer) = data.getShort(0).celsius / 10d
 }
@@ -269,8 +257,7 @@ case class RoboclawStatus(status: Short) {
   def m2Home                 = (status & M2_HOME)                   != 0
 }
 
-case class ReadStatus(address: Byte) extends Command {
-  type ResponseType = RoboclawStatus
+case class ReadStatus(address: Byte) extends Command[RoboclawStatus] {
   val command = 90.toByte
   def parseResults(data: ByteBuffer) = RoboclawStatus(data.getShort(0))
 }
@@ -279,8 +266,7 @@ sealed trait EncoderMode
 case object QUADRATURE extends EncoderMode
 case object ABSOLUTE extends EncoderMode
 
-case class ReadEncoderMode(address: Byte) extends Command {
-  type ResponseType = TwoMotorData[EncoderMode]
+case class ReadEncoderMode(address: Byte) extends Command[TwoMotorData[EncoderMode]] {
   val command = 91.toByte
   def parseResults(data: ByteBuffer) = TwoMotorData( if((data.get(0) & 1) == 0) QUADRATURE else ABSOLUTE
                                                    , if((data.get(1) & 1) == 0) QUADRATURE else ABSOLUTE)
@@ -306,8 +292,7 @@ case class WriteSettingsToEeprom(address: Byte) extends UnitCommand {
   val command = 94.toByte
 }
 
-case class ReadSettingsFromEeprom(address: Byte) extends Command {
-  type ResponseType = TwoMotorData[EncoderMode]
+case class ReadSettingsFromEeprom(address: Byte) extends Command[TwoMotorData[EncoderMode]] {
   val command = 95.toByte
   def parseResults(data: ByteBuffer) = TwoMotorData( if((data.get(0) & 1) == 0) QUADRATURE else ABSOLUTE
                                                    , if((data.get(1) & 1) == 0) QUADRATURE else ABSOLUTE)
@@ -331,15 +316,13 @@ case class SetM2CurrentLimit(address: Byte, max: ElectricCurrent) extends CrcCom
   }
 }
 
-case class ReadM1CurrentLimit(address: Byte) extends Command {
-  type ResponseType = Range[ElectricCurrent]
+case class ReadM1CurrentLimit(address: Byte) extends Command[Range[ElectricCurrent]] {
   val command = 136.toByte
   def parseResults(data: ByteBuffer) = Range( data.getShort(2).amps / 100
                                             , data.getShort(0).amps / 100)
 }
 
-case class ReadM2CurrentLimit(address: Byte) extends Command {
-  type ResponseType = Range[ElectricCurrent]
+case class ReadM2CurrentLimit(address: Byte) extends Command[Range[ElectricCurrent]] {
   val command = 137.toByte
   def parseResults(data: ByteBuffer) = Range( data.getShort(2).amps / 100
                                             , data.getShort(0).amps / 100)
@@ -357,8 +340,7 @@ case class SetPwmMode(address: Byte, mode: PwmMode) extends CrcCommand {
   }
 }
 
-case class ReadPwmMode(address: Byte) extends Command {
-  type ResponseType = PwmMode
+case class ReadPwmMode(address: Byte) extends Command[PwmMode] {
   val command = 149.toByte
   def parseResults(data: ByteBuffer) = if (data.get(0) == 0) LOCKED_ANTIPHASE else SIGN_MAGNITUDE
 }
@@ -371,32 +353,28 @@ case class EncoderStatus(status: Byte) {
   def forward: Boolean = (status & 2) != 0
 }
 
-case class ReadM1Encoder(address: Byte) extends Command {
-  type ResponseType = (Long, EncoderStatus)
+case class ReadM1Encoder(address: Byte) extends Command[(Long, EncoderStatus)] {
   val command = 16.toByte
   def parseResults(data: ByteBuffer) = {
     (data.getInt(0).toLong + Int.MaxValue + 1, EncoderStatus(data.get(4)))
   }
 }
 
-case class ReadM2Encoder(address: Byte) extends Command {
-  type ResponseType = (Long, EncoderStatus)
+case class ReadM2Encoder(address: Byte) extends Command[(Long, EncoderStatus)] {
   val command = 17.toByte
   def parseResults(data: ByteBuffer) = {
     (data.getInt(0).toLong + Int.MaxValue + 1, EncoderStatus(data.get(4)))
   }
 }
 
-case class ReadM1Speed(address: Byte) extends Command {
-  type ResponseType = (Frequency, EncoderStatus)
+case class ReadM1Speed(address: Byte) extends Command[(Frequency, EncoderStatus)] {
   val command = 18.toByte
   def parseResults(data: ByteBuffer) = {
     (data.getInt(0).hertz, EncoderStatus(data.get(4)))
   }
 }
 
-case class ReadM2Speed(address: Byte) extends Command {
-  type ResponseType = (Frequency, EncoderStatus)
+case class ReadM2Speed(address: Byte) extends Command[(Frequency, EncoderStatus)] {
   val command = 19.toByte
   def parseResults(data: ByteBuffer) = {
     (data.getInt(0).hertz, EncoderStatus(data.get(4)))
@@ -456,16 +434,14 @@ case class SetVelocityPidConstantsM2( address: Byte
   }
 }
 
-case class ReadRawSpeedM1(address: Byte) extends Command {
-  type ResponseType = (Frequency, Boolean)  // boolean here is "forward"
+case class ReadRawSpeedM1(address: Byte) extends Command[(Frequency, Boolean)] {  // boolean here is "forward"
   val command = 30.toByte
   def parseResults(data: ByteBuffer) = {
     (data.getInt(0).hertz * 300, data.get(4) == 0d)
   }
 }
 
-case class ReadRawSpeedM2(address: Byte) extends Command {
-  type ResponseType = (Frequency, Boolean)  // boolean here is "forward"
+case class ReadRawSpeedM2(address: Byte) extends Command[(Frequency, Boolean)] {  // boolean here is "forward"
   val command = 31.toByte
   def parseResults(data: ByteBuffer) = {
     (data.getInt(0).hertz * 300, data.get(4) == 0d)
@@ -650,8 +626,7 @@ case class BufferedM1M2DriveWithSignedSpeedAccelAndDistance( address: Byte
   }
 }
 
-case class ReadBufferLength(address: Byte) extends Command {
-  type ResponseType = TwoMotorData[Option[Byte]]
+case class ReadBufferLength(address: Byte) extends Command[TwoMotorData[Option[Byte]]] {
   val command = 47.toByte
   def parseResults(data: ByteBuffer) = {
     TwoMotorData( if (data.get(0) == 0x80.toByte) None else Some(data.get(0))
@@ -730,8 +705,7 @@ case class DriveM1M2WithSignedDutyAndAcceleration( address: Byte
 
 case class PidConstants(p: Int, i: Int, d: Int) {}
 
-case class ReadMotor1VelocityPidAndQppsSettings(address: Byte) extends Command {
-  type ResponseType = (PidConstants, Frequency)
+case class ReadMotor1VelocityPidAndQppsSettings(address: Byte) extends Command[(PidConstants, Frequency)] {
   val command = 55.toByte
   def parseResults(data: ByteBuffer) = {
     ( PidConstants(data.getInt(0), data.getInt(4), data.getInt(8))
@@ -739,8 +713,7 @@ case class ReadMotor1VelocityPidAndQppsSettings(address: Byte) extends Command {
   }
 }
 
-case class ReadMotor2VelocityPidAndQppsSettings(address: Byte) extends Command {
-  type ResponseType = (PidConstants, Frequency)
+case class ReadMotor2VelocityPidAndQppsSettings(address: Byte) extends Command[(PidConstants, Frequency)] {
   val command = 56.toByte
   def parseResults(data: ByteBuffer) = {
     ( PidConstants(data.getInt(0), data.getInt(4), data.getInt(8))
@@ -793,8 +766,7 @@ case class PositionPidConstants( pid: PidConstants
                                , deadzone: Int
                                , positionRange: Range[Int]) {}
 
-case class ReadMotor1PositionPidConstants(address: Byte) extends Command {
-  type ResponseType = PositionPidConstants
+case class ReadMotor1PositionPidConstants(address: Byte) extends Command[PositionPidConstants] {
   val command = 63.toByte
   def parseResults(data: ByteBuffer) = {
     PositionPidConstants( PidConstants(data.getInt(0), data.getInt(4), data.getInt(8))
@@ -804,8 +776,7 @@ case class ReadMotor1PositionPidConstants(address: Byte) extends Command {
   }
 }
 
-case class ReadMotor2PositionPidConstants(address: Byte) extends Command {
-  type ResponseType = PositionPidConstants
+case class ReadMotor2PositionPidConstants(address: Byte) extends Command[PositionPidConstants] {
   val command = 64.toByte
   def parseResults(data: ByteBuffer) = {
     PositionPidConstants( PidConstants(data.getInt(0), data.getInt(4), data.getInt(8))
