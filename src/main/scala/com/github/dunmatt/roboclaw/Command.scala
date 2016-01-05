@@ -728,24 +728,168 @@ case class DriveM1M2WithSignedDutyAndAcceleration( address: Byte
   }
 }
 
-case class PidGains(p: Int, i: Int, d: Int) {}
+case class PidConstants(p: Int, i: Int, d: Int) {}
 
 case class ReadMotor1VelocityPidAndQppsSettings(address: Byte) extends Command {
-  type ResponseType = (PidGains, Frequency)
+  type ResponseType = (PidConstants, Frequency)
   val command = 55.toByte
   def parseResults(data: ByteBuffer) = {
-    ( PidGains(data.getInt(0), data.getInt(4), data.getInt(8))
+    ( PidConstants(data.getInt(0), data.getInt(4), data.getInt(8))
     , data.getInt(12).hertz)
   }
 }
 
 case class ReadMotor2VelocityPidAndQppsSettings(address: Byte) extends Command {
-  type ResponseType = (PidGains, Frequency)
+  type ResponseType = (PidConstants, Frequency)
   val command = 56.toByte
   def parseResults(data: ByteBuffer) = {
-    ( PidGains(data.getInt(0), data.getInt(4), data.getInt(8))
+    ( PidConstants(data.getInt(0), data.getInt(4), data.getInt(8))
     , data.getInt(12).hertz)
   }
 }
+
+case class SetMotor1PositionPidConstants( address: Byte
+                                        , constants: PidConstants
+                                        , maxI: Int = Int.MaxValue
+                                        , deadzone: Int = 0
+                                        , minPosition: Int = 0
+                                        , maxPosition: Int = -1)  // really MaxValue
+           extends CrcCommand {
+  val command = 61.toByte
+  override def populateBufferMiddle(buf: ByteBuffer): Int = {
+    buf.putInt(2, constants.d)
+    buf.putInt(6, constants.p)
+    buf.putInt(10, constants.i)
+    buf.putInt(14, maxI)
+    buf.putInt(18, deadzone)
+    buf.putInt(22, minPosition)
+    buf.putInt(26, maxPosition)
+    30
+  }
+}
+
+case class SetMotor2PositionPidConstants( address: Byte
+                                        , constants: PidConstants
+                                        , maxI: Int = Int.MaxValue
+                                        , deadzone: Int = 0
+                                        , minPosition: Int = 0
+                                        , maxPosition: Int = -1)  // really MaxValue
+           extends CrcCommand {
+  val command = 62.toByte
+  override def populateBufferMiddle(buf: ByteBuffer): Int = {
+    buf.putInt(2, constants.d)
+    buf.putInt(6, constants.p)
+    buf.putInt(10, constants.i)
+    buf.putInt(14, maxI)
+    buf.putInt(18, deadzone)
+    buf.putInt(22, minPosition)
+    buf.putInt(26, maxPosition)
+    30
+  }
+}
+
+case class PositionPidConstants( pid: PidConstants
+                               , maxI: Int
+                               , deadzone: Int
+                               , positionRange: Range[Int]) {}
+
+case class ReadMotor1PositionPidConstants(address: Byte) extends Command {
+  type ResponseType = PositionPidConstants
+  val command = 63.toByte
+  def parseResults(data: ByteBuffer) = {
+    PositionPidConstants( PidConstants(data.getInt(0), data.getInt(4), data.getInt(8))
+                        , data.getInt(12)
+                        , data.getInt(16)
+                        , Range(data.getInt(20), data.getInt(24)))
+  }
+}
+
+case class ReadMotor2PositionPidConstants(address: Byte) extends Command {
+  type ResponseType = PositionPidConstants
+  val command = 64.toByte
+  def parseResults(data: ByteBuffer) = {
+    PositionPidConstants( PidConstants(data.getInt(0), data.getInt(4), data.getInt(8))
+                        , data.getInt(12)
+                        , data.getInt(16)
+                        , Range(data.getInt(20), data.getInt(24)))
+  }
+}
+
+case class BufferedDriveM1WithSignedSpeedAccelDeccelAndPosition( address: Byte
+                                                               , accel: FrequencyRate
+                                                               , deccel: FrequencyRate
+                                                               , speed: Frequency
+                                                               , position: Int
+                                                               , clearBuffer: Boolean = false)
+           extends CrcCommand {
+  val command = 65.toByte
+  override def populateBufferMiddle(buf: ByteBuffer): Int = {
+    buf.putInt(2, accel.toHertzPerSecond.toInt)
+    buf.putInt(6, speed.toHertz.toInt)
+    buf.putInt(10, deccel.toHertzPerSecond.toInt)
+    buf.putInt(14, position)
+    buf.put(18, if(clearBuffer) 1 else 0)
+    19
+  }
+}
+
+case class BufferedDriveM2WithSignedSpeedAccelDeccelAndPosition( address: Byte
+                                                               , accel: FrequencyRate
+                                                               , deccel: FrequencyRate
+                                                               , speed: Frequency
+                                                               , position: Int
+                                                               , clearBuffer: Boolean = false)
+           extends CrcCommand {
+  val command = 66.toByte
+  override def populateBufferMiddle(buf: ByteBuffer): Int = {
+    buf.putInt(2, accel.toHertzPerSecond.toInt)
+    buf.putInt(6, speed.toHertz.toInt)
+    buf.putInt(10, deccel.toHertzPerSecond.toInt)
+    buf.putInt(14, position)
+    buf.put(18, if(clearBuffer) 1 else 0)
+    19
+  }
+}
+
+case class BufferedDriveM1M2WithSignedSpeedAccelDeccelAndPosition( address: Byte
+                                                                 , accels: TwoMotorData[FrequencyRate]
+                                                                 , deccels: TwoMotorData[FrequencyRate]
+                                                                 , speeds: TwoMotorData[Frequency]
+                                                                 , positions: TwoMotorData[Int]
+                                                                 , clearBuffer: Boolean = false)
+           extends CrcCommand {
+  val command = 67.toByte
+  override def populateBufferMiddle(buf: ByteBuffer): Int = {
+    buf.putInt(2, accels.m1.toHertzPerSecond.toInt)
+    buf.putInt(6, speeds.m1.toHertz.toInt)
+    buf.putInt(10, deccels.m1.toHertzPerSecond.toInt)
+    buf.putInt(14, positions.m1)
+    buf.putInt(18, accels.m1.toHertzPerSecond.toInt)
+    buf.putInt(22, speeds.m1.toHertz.toInt)
+    buf.putInt(26, deccels.m1.toHertzPerSecond.toInt)
+    buf.putInt(30, positions.m1)
+    buf.put(34, if(clearBuffer) 1 else 0)
+    35
+  }
+}
+
+case class SetM1DefaultDutyAcceleration( address: Byte
+                                       , accel: FrequencyRate) extends CrcCommand {
+  val command = 68.toByte
+  override def populateBufferMiddle(buf: ByteBuffer): Int = {
+    buf.putInt(2, accel.toHertzPerSecond.toInt)
+    6
+  }
+}
+
+case class SetM2DefaultDutyAcceleration( address: Byte
+                                       , accel: FrequencyRate) extends CrcCommand {
+  val command = 69.toByte
+  override def populateBufferMiddle(buf: ByteBuffer): Int = {
+    buf.putInt(2, accel.toHertzPerSecond.toInt)
+    6
+  }
+}
+
 
 
