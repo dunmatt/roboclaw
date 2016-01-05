@@ -522,7 +522,230 @@ case class DriveM1M2WithSignedSpeed(address: Byte, speeds: TwoMotorData[Frequenc
   }
 }
 
+case class DriveM1WithSignedSpeedAndAcceleration( address: Byte
+                                                , speed: Frequency
+                                                , accel: FrequencyRate) extends CrcCommand {
+  val command = 38.toByte
+  override def populateBufferMiddle(buf: ByteBuffer): Int = {
+    buf.putInt(2, accel.toHertzPerSecond.toInt)
+    buf.putInt(6, speed.toHertz.toInt)
+    10
+  }
+}
 
+case class DriveM2WithSignedSpeedAndAcceleration( address: Byte
+                                                , speed: Frequency
+                                                , accel: FrequencyRate) extends CrcCommand {
+  val command = 39.toByte
+  override def populateBufferMiddle(buf: ByteBuffer): Int = {
+    buf.putInt(2, accel.toHertzPerSecond.toInt)
+    buf.putInt(6, speed.toHertz.toInt)
+    10
+  }
+}
 
+case class DriveM1M2WithSignedSpeedAndAcceleration( address: Byte
+                                                  , speeds: TwoMotorData[Frequency]
+                                                  , accel: FrequencyRate) extends CrcCommand {
+  val command = 40.toByte
+  override def populateBufferMiddle(buf: ByteBuffer): Int = {
+    buf.putInt(2, accel.toHertzPerSecond.toInt)
+    buf.putInt(6, speeds.m1.toHertz.toInt)
+    buf.putInt(10, speeds.m2.toHertz.toInt)
+    14
+  }
+}
+
+case class BufferedM1DriveWithSignedSpeedAndDistance( address: Byte
+                                                    , speed: Frequency
+                                                    , distance: Int
+                                                    , clearBuffer: Boolean = false)
+           extends CrcCommand {
+  val command = 41.toByte
+  override def populateBufferMiddle(buf: ByteBuffer): Int = {
+    buf.putInt(2, speed.toHertz.toInt)
+    buf.putInt(6, distance)
+    buf.put(10, if(clearBuffer) 1 else 0)
+    11
+  }
+}
+
+case class BufferedM2DriveWithSignedSpeedAndDistance( address: Byte
+                                                    , speed: Frequency
+                                                    , distance: Int
+                                                    , clearBuffer: Boolean = false)
+           extends CrcCommand {
+  val command = 42.toByte
+  override def populateBufferMiddle(buf: ByteBuffer): Int = {
+    buf.putInt(2, speed.toHertz.toInt)
+    buf.putInt(6, distance)
+    buf.put(10, if(clearBuffer) 1 else 0)
+    11
+  }
+}
+
+case class BufferedM1M2DriveWithSignedSpeedAndDistance( address: Byte
+                                                      , speeds: TwoMotorData[Frequency]
+                                                      , distances: TwoMotorData[Int]
+                                                      , clearBuffer: Boolean = false)
+           extends CrcCommand {
+  val command = 43.toByte
+  override def populateBufferMiddle(buf: ByteBuffer): Int = {
+    buf.putInt(2, speeds.m1.toHertz.toInt)
+    buf.putInt(6, distances.m1)
+    buf.putInt(10, speeds.m2.toHertz.toInt)
+    buf.putInt(14, distances.m2)
+    buf.put(18, if(clearBuffer) 1 else 0)
+    19
+  }
+}
+
+case class BufferedM1DriveWithSignedSpeedAccelAndDistance( address: Byte
+                                                         , distance: Int
+                                                         , speed: Frequency
+                                                         , accel: FrequencyRate
+                                                         , clearBuffer: Boolean = false)
+           extends CrcCommand {
+  val command = 44.toByte
+  override def populateBufferMiddle(buf: ByteBuffer): Int = {
+    buf.putInt(2, accel.toHertzPerSecond.toInt)
+    buf.putInt(6, speed.toHertz.toInt)
+    buf.putInt(10, distance)
+    buf.put(14, if(clearBuffer) 1 else 0)
+    15
+  }
+}
+
+case class BufferedM2DriveWithSignedSpeedAccelAndDistance( address: Byte
+                                                         , distance: Int
+                                                         , speed: Frequency
+                                                         , accel: FrequencyRate
+                                                         , clearBuffer: Boolean = false)
+           extends CrcCommand {
+  val command = 45.toByte
+  override def populateBufferMiddle(buf: ByteBuffer): Int = {
+    buf.putInt(2, accel.toHertzPerSecond.toInt)
+    buf.putInt(6, speed.toHertz.toInt)
+    buf.putInt(10, distance)
+    buf.put(14, if(clearBuffer) 1 else 0)
+    15
+  }
+}
+
+case class BufferedM1M2DriveWithSignedSpeedAccelAndDistance( address: Byte
+                                                           , distances: TwoMotorData[Int]
+                                                           , speeds: TwoMotorData[Frequency]
+                                                           , accel: FrequencyRate
+                                                           , clearBuffer: Boolean = false)
+           extends CrcCommand {
+  val command = 46.toByte
+  override def populateBufferMiddle(buf: ByteBuffer): Int = {
+    buf.putInt(2, accel.toHertzPerSecond.toInt)
+    buf.putInt(6, speeds.m1.toHertz.toInt)
+    buf.putInt(10, distances.m1)
+    buf.putInt(14, speeds.m1.toHertz.toInt)
+    buf.putInt(18, distances.m1)
+    buf.put(22, if(clearBuffer) 1 else 0)
+    23
+  }
+}
+
+case class ReadBufferLength(address: Byte) extends Command {
+  type ResponseType = TwoMotorData[Option[Byte]]
+  val command = 47.toByte
+  def parseResults(data: ByteBuffer) = {
+    TwoMotorData( if (data.get(0) == 0x80.toByte) None else Some(data.get(0))
+                , if (data.get(1) == 0x80.toByte) None else Some(data.get(1)))
+  }
+}
+
+case class DriveM1M2WithSignedSpeedAndIndividualAcceleration( address: Byte
+                                                            , speeds: TwoMotorData[Frequency]
+                                                            , accels: TwoMotorData[FrequencyRate])
+           extends CrcCommand {
+  val command = 50.toByte
+  override def populateBufferMiddle(buf: ByteBuffer): Int = {
+    buf.putInt(2, accels.m1.toHertzPerSecond.toInt)
+    buf.putInt(6, speeds.m1.toHertz.toInt)
+    buf.putInt(10, accels.m2.toHertzPerSecond.toInt)
+    buf.putInt(14, speeds.m2.toHertz.toInt)
+    18
+  }
+}
+
+case class BufferedDriveM1M2WithSignedSpeedIndividualAccelAndDistance( address: Byte
+                                                                     , distances: TwoMotorData[Int]
+                                                                     , speeds: TwoMotorData[Frequency]
+                                                                     , accels: TwoMotorData[FrequencyRate]
+                                                                     , clearBuffer: Boolean = false)
+           extends CrcCommand {
+  val command = 51.toByte
+  override def populateBufferMiddle(buf: ByteBuffer): Int = {
+    buf.putInt(2, accels.m1.toHertzPerSecond.toInt)
+    buf.putInt(6, speeds.m1.toHertz.toInt)
+    buf.putInt(10, distances.m1)
+    buf.putInt(14, accels.m2.toHertzPerSecond.toInt)
+    buf.putInt(18, speeds.m2.toHertz.toInt)
+    buf.putInt(22, distances.m2)
+    buf.put(26, if(clearBuffer) 1 else 0)
+    27
+  }
+}
+
+case class DriveM1WithSignedDutyAndAcceleration( address: Byte
+                                               , dutyCycle: Double
+                                               , accel: FrequencyRate) extends CrcCommand {
+  val command = 52.toByte
+  override def populateBufferMiddle(buf: ByteBuffer): Int = {
+    buf.putShort(2, (dutyCycle * 32767).toShort)
+    buf.putShort(4, accel.toHertzPerSecond.toShort)
+    6
+  }
+}
+
+case class DriveM2WithSignedDutyAndAcceleration( address: Byte
+                                               , dutyCycle: Double
+                                               , accel: FrequencyRate) extends CrcCommand {
+  val command = 53.toByte
+  override def populateBufferMiddle(buf: ByteBuffer): Int = {
+    buf.putShort(2, (dutyCycle * 32767).toShort)
+    buf.putShort(4, accel.toHertzPerSecond.toShort)
+    6
+  }
+}
+
+case class DriveM1M2WithSignedDutyAndAcceleration( address: Byte
+                                                 , dutyCycles: TwoMotorData[Double]
+                                                 , accels: TwoMotorData[FrequencyRate])
+           extends CrcCommand {
+  val command = 54.toByte
+  override def populateBufferMiddle(buf: ByteBuffer): Int = {
+    buf.putShort(2, (dutyCycles.m1 * 32767).toShort)
+    buf.putShort(4, accels.m1.toHertzPerSecond.toShort)
+    buf.putShort(6, (dutyCycles.m1 * 32767).toShort)
+    buf.putShort(8, accels.m1.toHertzPerSecond.toShort)
+    10
+  }
+}
+
+case class PidGains(p: Int, i: Int, d: Int) {}
+
+case class ReadMotor1VelocityPidAndQppsSettings(address: Byte) extends Command {
+  type ResponseType = (PidGains, Frequency)
+  val command = 55.toByte
+  def parseResults(data: ByteBuffer) = {
+    ( PidGains(data.getInt(0), data.getInt(4), data.getInt(8))
+    , data.getInt(12).hertz)
+  }
+}
+
+case class ReadMotor2VelocityPidAndQppsSettings(address: Byte) extends Command {
+  type ResponseType = (PidGains, Frequency)
+  val command = 56.toByte
+  def parseResults(data: ByteBuffer) = {
+    ( PidGains(data.getInt(0), data.getInt(4), data.getInt(8))
+    , data.getInt(12).hertz)
+  }
+}
 
 
