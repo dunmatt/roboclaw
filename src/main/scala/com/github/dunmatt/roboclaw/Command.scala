@@ -359,16 +359,15 @@ case class SetM2CurrentLimit(address: Byte, max: ElectricCurrent) extends CrcCom
 case class ReadM1CurrentLimit(address: Byte) extends Command[Range[ElectricCurrent]] {
   val command = 136.toByte
   def parseResults(data: ByteBuffer) = {
-    val max = data.getShort.amps
-    Try(Range(data.getShort.amps / 100, max / 100))
+    Try(Range(data.getShort.amps / 100, data.getShort.amps / 100))
   }
 }
 
+// TODO: for some reason my RoboClaw doesn't seem to respond to this command, debug it.
 case class ReadM2CurrentLimit(address: Byte) extends Command[Range[ElectricCurrent]] {
   val command = 137.toByte
   def parseResults(data: ByteBuffer) = {
-    val max = data.getShort.amps
-    Try(Range(data.getShort.amps / 100, max / 100))
+    Try(Range(data.getShort.amps / 100, data.getShort.amps / 100))
   }
 }
 
@@ -399,16 +398,14 @@ case class EncoderStatus(status: Byte) {
 case class ReadM1Encoder(address: Byte) extends Command[(Long, EncoderStatus)] {
   val command = 16.toByte
   def parseResults(data: ByteBuffer) = {
-    // TODO: this is very likely wrong!
-    Try((data.getInt.toLong + Int.MaxValue + 1, EncoderStatus(data.get)))
+    Try((data.getInt & 0xffffffffl, EncoderStatus(data.get)))
   }
 }
 
 case class ReadM2Encoder(address: Byte) extends Command[(Long, EncoderStatus)] {
   val command = 17.toByte
   def parseResults(data: ByteBuffer) = {
-    // TODO: this is very likely wrong!
-    Try((data.getInt.toLong + Int.MaxValue + 1, EncoderStatus(data.get)))
+    Try((data.getInt & 0xffffffffl, EncoderStatus(data.get)))
   }
 }
 
