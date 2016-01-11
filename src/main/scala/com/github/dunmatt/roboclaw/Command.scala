@@ -33,7 +33,7 @@ sealed trait UnitCommand extends Command[Unit] {
     if (data.get(0) == 0xff.toByte) {
       Success(Unit)
     } else {
-      Failure(new Exception(s"Invalid result ${data.get(0).toInt}, expected 0xff."))
+      Failure(new Exception(s"Invalid result ${data.get(0).toInt}, expected 0xff(255)."))
     }
   }
 
@@ -303,6 +303,41 @@ case class ReadSettingsFromEeprom(address: Byte) extends Command[TwoMotorData[En
   val command = 95.toByte
   def parseResults(data: ByteBuffer) = Try(TwoMotorData( if((data.get & 1) == 0) QUADRATURE else ABSOLUTE
                                                        , if((data.get & 1) == 0) QUADRATURE else ABSOLUTE))
+}
+
+case class ConfigSettings(config: Short) {
+  def rcMode = (config & 0x3) == 0
+  def analogMode = (config & 0x3) == 1
+  def simpleSerialMode = (config & 0x3) == 2
+  def packetSerialMode = (config & 0x3) == 3
+  def batteryProtectOff = (config & 0x1C) == 0
+  def batteryProtectAuto = (config & 0x1C) == 0x4
+  def batteryProtect2Cell = (config & 0x1C) == 0x8
+  def batteryProtect3Cell = (config & 0x1C) == 0xC
+  def batteryProtect4Cell = (config & 0x1C) == 0x10
+  def batteryProtect5Cell = (config & 0x1C) == 0x14
+  def batteryProtect6Cell = (config & 0x1C) == 0x18
+  def batteryProtect7Cell = (config & 0x1C) == 0x1C
+  // TODO: figure out what mixing, exponential and MCU are and add them here
+  def baud2400 = (config & 0xE0) == 0
+  def baud9600 = (config & 0xE0) == 0x20
+  def baud19200 = (config & 0xE0) == 0x40
+  def baud38400 = (config & 0xE0) == 0x60
+  def baud57600 = (config & 0xE0) == 0x80
+  def baud115200 = (config & 0xE0) == 0xA0
+  def baud230400 = (config & 0xE0) == 0xC0
+  def baud460800 = (config & 0xE0) == 0xE0
+  def flipSwitch = (config & 0x100) == 0x100
+  def address = (0x80 + ((config & 0x700) >> 8)).toByte
+  def slaveMode = (config & 0x800) == 0x800
+  def swapEncoders = (config & 0x2000) == 0x2000
+  def swapButtons = (config & 0x4000) == 0x4000
+  def multiUnitMode = (config & 0x8000) == 0x8000
+}
+
+case class ReadStandardConfigSettings(address: Byte) extends Command[ConfigSettings] {
+  val command = 99.toByte
+  def parseResults(data: ByteBuffer) = Try(ConfigSettings(data.getShort))
 }
 
 case class SetM1CurrentLimit(address: Byte, max: ElectricCurrent) extends CrcCommand {
