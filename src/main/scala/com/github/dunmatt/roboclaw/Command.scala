@@ -356,18 +356,18 @@ case class SetM2CurrentLimit(address: Byte, max: ElectricCurrent) extends CrcCom
   }
 }
 
-case class ReadM1CurrentLimit(address: Byte) extends Command[Range[ElectricCurrent]] {
+case class ReadM1CurrentLimit(address: Byte) extends Command[ElectricCurrent] {
   val command = 136.toByte
   def parseResults(data: ByteBuffer) = {
-    Try(Range(data.getShort.amps / 100, data.getShort.amps / 100))
+    Try(data.getShort.amps / 100)
   }
 }
 
 // TODO: for some reason my RoboClaw doesn't seem to respond to this command, debug it.
-case class ReadM2CurrentLimit(address: Byte) extends Command[Range[ElectricCurrent]] {
+case class ReadM2CurrentLimit(address: Byte) extends Command[ElectricCurrent] {
   val command = 137.toByte
   def parseResults(data: ByteBuffer) = {
-    Try(Range(data.getShort.amps / 100, data.getShort.amps / 100))
+    Try(data.getShort.amps / 100)
   }
 }
 
