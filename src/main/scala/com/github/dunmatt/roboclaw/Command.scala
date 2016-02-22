@@ -740,6 +740,7 @@ case class ReadMotor2VelocityPidAndQppsSettings(address: Byte) extends Command[(
   }
 }
 
+// TODO: refactor this to use PositionPidConstants
 case class SetMotor1PositionPidConstants( address: Byte
                                         , constants: PidConstants
                                         , maxI: Int = Int.MaxValue
