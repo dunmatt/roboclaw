@@ -392,7 +392,7 @@ case class ReadPwmMode(address: Byte) extends Command[PwmMode] {
 case class EncoderStatus(status: Byte) {
   def underflow: Boolean = (status & 1) != 0
   def overflow: Boolean = (status & 4) != 0
-  def forward: Boolean = (status & 2) != 0
+  def forward: Boolean = (status & 2) == 0
 }
 
 case class ReadM1Encoder(address: Byte) extends Command[(Long, EncoderStatus)] {
@@ -412,14 +412,14 @@ case class ReadM2Encoder(address: Byte) extends Command[(Long, EncoderStatus)] {
 case class ReadM1Speed(address: Byte) extends Command[(Frequency, EncoderStatus)] {
   val command = 18.toByte
   def parseResults(data: ByteBuffer) = {
-    Try((data.getInt.hertz, EncoderStatus(data.get)))
+    Try((data.getInt.hertz, EncoderStatus((data.get << 1).toByte)))
   }
 }
 
 case class ReadM2Speed(address: Byte) extends Command[(Frequency, EncoderStatus)] {
   val command = 19.toByte
   def parseResults(data: ByteBuffer) = {
-    Try((data.getInt.hertz, EncoderStatus(data.get)))
+    Try((data.getInt.hertz, EncoderStatus((data.get << 1).toByte)))
   }
 }
 
