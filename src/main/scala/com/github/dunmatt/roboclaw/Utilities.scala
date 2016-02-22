@@ -4,8 +4,8 @@ import java.nio.ByteBuffer
 
 object Utilities {
   def crc16(packet: ByteBuffer): Char = {
-    (0 until packet.position).foldLeft(0.toChar) { case (crc, i) =>
-      crc16Step(crc, packet.get(i))
+    (0 until packet.position).foldLeft(0.toChar) { 
+      case (crc, i) => crc16Step(crc, packet.get(i))
     }
   }
 
@@ -20,8 +20,8 @@ object Utilities {
     val target = packet.getChar(packet.position-2)
     val a = crc16Step(0, address)
     val b = crc16Step(a, command)
-    (0 until packet.position-2).foldLeft(b) { case (crc, i) =>
-      crc16Step(crc, packet.get(i))
+    (0 until packet.position-2).foldLeft(b) {
+      case (crc, i) => crc16Step(crc, packet.get(i))
     } == target
   }
 }
