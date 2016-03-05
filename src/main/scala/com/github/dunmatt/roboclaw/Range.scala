@@ -6,14 +6,17 @@ trait Range[D] {
   def min: D
   def max: D
   def contains(q: D): Boolean
+  def percentageThrough(q: D): Double
 }
 
 case class IntRange(min: Int, max: Int) extends Range[Int] {
   def contains(q: Int): Boolean = min <= q && q <= max
+  def percentageThrough(q: Int): Double = (q - min) / (max - min)
 }
 
 case class QuantityRange[D <: Quantity[D]](min: D, max: D) extends Range[D] {
   def contains(q: D): Boolean = min <= q && q <= max
+  def percentageThrough(q: D): Double = (q - min) / (max - min)
 }
 
 object Range {
