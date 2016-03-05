@@ -448,6 +448,7 @@ case class SetVelocityPidConstantsM1( address: Byte
                                     , p: Int
                                     , i: Int
                                     , d: Int) extends CrcCommand {
+  def this(address: Byte, qpps: Frequency, pid: PidConstants) = this(address, qpps, pid.p, pid.i, pid.d)
   val command = 28.toByte
   override def populateBufferMiddle(buf: ByteBuffer): Unit = {
     buf.putInt(d)
@@ -462,6 +463,7 @@ case class SetVelocityPidConstantsM2( address: Byte
                                     , p: Int
                                     , i: Int
                                     , d: Int) extends CrcCommand {
+  def this(address: Byte, qpps: Frequency, pid: PidConstants) = this(address, qpps, pid.p, pid.i, pid.d)
   val command = 29.toByte
   override def populateBufferMiddle(buf: ByteBuffer): Unit = {
     buf.putInt(d)

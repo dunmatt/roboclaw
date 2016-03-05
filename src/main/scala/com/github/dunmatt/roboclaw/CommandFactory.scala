@@ -15,6 +15,7 @@ trait CommandFactory {
   def readEncoder: Command[(Long, EncoderStatus)]
   def readSpeed: Command[(Frequency, EncoderStatus)]
   def setQuadratureEncoderValue(value: Long): CrcCommand
+  def setVelocityPidConstants(qpps: Frequency, pid: PidConstants): CrcCommand = setVelocityPidConstants(qpps, pid.p, pid.i, pid.d)
   def setVelocityPidConstants(qpps: Frequency, p: Int, i: Int, d: Int): CrcCommand
   def readRawSpeed: Command[(Frequency, Boolean)]  // boolean here is "forward"
   def driveWithSignedDutyCycle(dutyCycle: Double): CrcCommand
