@@ -264,6 +264,7 @@ case class RoboclawStatus(status: Short) {
   def temperature2Warning    = (status & TEMPERATURE_2_WARNING)     != 0
   def m1Home                 = (status & M1_HOME)                   != 0
   def m2Home                 = (status & M2_HOME)                   != 0
+  def error = mainBatteryLowWarning || temperatureError || temperature2Error || mainBatteryHighError || logicBatteryHighError || logicBatteryLowError || m1DriverFault || m2DriverFault
 }
 
 case class ReadStatus(address: Byte) extends Command[RoboclawStatus] {
