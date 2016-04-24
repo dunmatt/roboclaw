@@ -364,33 +364,37 @@ case class ReadStandardConfigSettings(address: Byte) extends Command[ConfigSetti
 }
 
 case class SetM1CurrentLimit(address: Byte, max: ElectricCurrent) extends CrcCommand {
-  val command = 134.toByte
+  val command = 133.toByte
   override def populateBufferMiddle(buf: ByteBuffer): Unit = {
-    buf.putShort((max.toAmperes * 100).toShort)
-    buf.putShort(0)
+    buf.putInt((max.toAmperes * 100).toInt)
+    buf.putInt(0)
   }
 }
 
 case class SetM2CurrentLimit(address: Byte, max: ElectricCurrent) extends CrcCommand {
-  val command = 135.toByte
+  val command = 134.toByte
   override def populateBufferMiddle(buf: ByteBuffer): Unit = {
-    buf.putShort((max.toAmperes * 100).toShort)
-    buf.putShort(0)
+    buf.putInt((max.toAmperes * 100).toInt)
+    buf.putInt(0)
   }
 }
 
 case class ReadM1CurrentLimit(address: Byte) extends Command[ElectricCurrent] {
-  val command = 136.toByte
+  val command = 135.toByte
   def parseResults(data: ByteBuffer) = {
-    Try(data.getShort.amps / 100)
+    val result = Try(data.getInt.amps / 100)
+    data.getInt
+    result
   }
 }
 
 // TODO: for some reason my RoboClaw doesn't seem to respond to this command, debug it.
 case class ReadM2CurrentLimit(address: Byte) extends Command[ElectricCurrent] {
-  val command = 137.toByte
+  val command = 136.toByte
   def parseResults(data: ByteBuffer) = {
-    Try(data.getShort.amps / 100)
+    val result = Try(data.getInt.amps / 100)
+    data.getInt
+    result
   }
 }
 
