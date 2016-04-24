@@ -131,6 +131,7 @@ case class ReadFirmwareVersion(address: Byte) extends Command[String] {
     val arr = data.array
     Try(new String(arr.slice(data.arrayOffset, arr.indexOfSlice(Seq(0x0A, 0x00)))))
   }
+  override val expectedResponseLength = 29
 }
 
 case class ReadMainBatteryVoltage(address: Byte) extends Command[ElectricPotential] {
