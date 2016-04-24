@@ -26,6 +26,14 @@ sealed trait Command[ResponseType] {
   }
 
   def expectsCrc: Boolean = true
+
+  val expectedResponseLength = {
+    val buf = ByteBuffer.allocate(128)
+    (0 until 128).foreach { _ => buf.put(0.toByte) }
+    buf.flip
+    parseResults(buf)
+    buf.position + 2  // magic 2 here is for the crc
+  }
 }
 
 sealed trait UnitCommand extends Command[Unit] {
@@ -38,6 +46,8 @@ sealed trait UnitCommand extends Command[Unit] {
   }
 
   override def expectsCrc = false
+
+  override val expectedResponseLength = 1
 }
 
 sealed trait CrcCommand extends UnitCommand {
@@ -334,6 +344,17 @@ case class ConfigSettings(config: Short) {
   def swapEncoders = (config & 0x2000) == 0x2000
   def swapButtons = (config & 0x4000) == 0x4000
   def multiUnitMode = (config & 0x8000) == 0x8000
+
+  def withPacketSerialMode = ConfigSettings((config | 3).toShort)
+  def withAutoBatteryProtect = ConfigSettings((config | 4).toShort)
+  def withMultiUnitMode = ConfigSettings((config | 0x8000).toShort)
+}
+
+case class SetStandardConfigSettings(address: Byte, settings: ConfigSettings) extends CrcCommand {
+  val command = 98.toByte
+  override def populateBufferMiddle(buf: ByteBuffer): Unit = {
+    buf.putShort(settings.config)
+  }
 }
 
 case class ReadStandardConfigSettings(address: Byte) extends Command[ConfigSettings] {

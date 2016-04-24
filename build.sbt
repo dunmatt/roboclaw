@@ -1,5 +1,5 @@
 lazy val commonSettings = Seq( organization := "com.github.dunmatt",
-                               version := "0.2.12",
+                               version := "0.2.14",
                                scalaVersion := "2.11.7")
 
 resolvers += Resolver.mavenLocal
